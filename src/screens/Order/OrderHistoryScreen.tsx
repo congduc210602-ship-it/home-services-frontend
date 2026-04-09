@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+// Thêm TouchableOpacity vào danh sách import ở đây nhé:
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { orderService } from '../../services/orderService';
 
-const OrderHistoryScreen = () => {
+// Truyền { navigation }: any vào đây để app biết đường chuyển trang
+const OrderHistoryScreen = ({ navigation }: any) => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -23,17 +25,36 @@ const OrderHistoryScreen = () => {
         }
     };
 
-    const renderOrderItem = ({ item }: any) => (
-        <View style={styles.card}>
-            <View style={styles.headerCard}>
-                <Text style={styles.serviceName}>{item.service_type}</Text>
-                <Text style={styles.status}>{item.status}</Text>
+    const renderOrderItem = ({ item }: any) => {
+        // Giả lập trạng thái để test UI (vì Backend hiện tại có thể chưa trả về trạng thái completed)
+        const isCompleted = item.status === 'completed' || true;
+
+        return (
+            <View style={styles.card}>
+                <View style={styles.headerCard}>
+                    <Text style={styles.serviceName}>{item.service_type}</Text>
+                    <Text style={[styles.status, isCompleted && { color: '#28a745' }]}>
+                        {isCompleted ? 'Hoàn thành' : item.status}
+                    </Text>
+                </View>
+                <Text style={styles.detail}>SĐT: {item.customer_phone}</Text>
+                <Text style={styles.detail}>Địa chỉ: {item.address}</Text>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
+                    <Text style={styles.price}>{item.price.toLocaleString('vi-VN')} đ</Text>
+
+                    {isCompleted && (
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#FFF3E0', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#FFB74D' }}
+                            onPress={() => navigation.navigate('Review', { orderId: item.id, serviceName: item.service_type })}
+                        >
+                            <Text style={{ color: '#F57C00', fontWeight: 'bold', fontSize: 14 }}>⭐ Đánh giá</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
-            <Text style={styles.detail}>SĐT: {item.customer_phone}</Text>
-            <Text style={styles.detail}>Địa chỉ: {item.address}</Text>
-            <Text style={styles.price}>Tổng: {item.price.toLocaleString('vi-VN')} VNĐ</Text>
-        </View>
-    );
+        );
+    };
 
     if (loading) {
         return <ActivityIndicator size="large" color="#007BFF" style={{ flex: 1, justifyContent: 'center' }} />;

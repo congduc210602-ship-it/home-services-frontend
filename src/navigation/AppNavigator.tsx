@@ -3,8 +3,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
+import OtpScreen from '../screens/Auth/OtpScreen';
 import OrderScreen from '../screens/Order/OrderScreen';
 import OrderHistoryScreen from '../screens/Order/OrderHistoryScreen';
+import ReviewScreen from '../screens/Order/ReviewScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -29,6 +31,12 @@ const AppNavigator = () => {
         component={OrderScreen}
         options={{ title: 'Đặt lịch' }}
       />
+      {/* Màn hình Xác thực OTP */}
+      <Stack.Screen
+        name="Otp"
+        component={OtpScreen}
+        options={{ headerShown: false }} // Ẩn thanh tiêu đề mặc định vì ta đã code nút "Quay lại" tự làm
+      />
       {/* Màn hình Lịch sử đặt lịch */}
       <Stack.Screen
         name="OrderHistory"
@@ -39,6 +47,11 @@ const AppNavigator = () => {
         name="Register"
         component={RegisterScreen}
         options={{ title: 'Đăng ký' }}
+      />
+      <Stack.Screen
+        name="Review"
+        component={ReviewScreen}
+        options={{ title: 'Đánh giá dịch vụ' }}
       />
     </Stack.Navigator>
 

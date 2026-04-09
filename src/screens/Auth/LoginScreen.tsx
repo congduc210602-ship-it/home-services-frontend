@@ -17,18 +17,14 @@ const LoginScreen = ({ navigation }: any) => {
 
     setIsLoading(true);
     try {
-      // Gọi hàm login từ service bạn vừa viết lúc nãy
       const response = await authService.login({ phone, password });
-      
-      // Lưu token vào bộ nhớ máy để dùng cho các API sau
+
       await AsyncStorage.setItem('userToken', response.access_token);
-      
-      Alert.alert('Thành công', 'Đăng nhập thành công!');
-      // Quay về trang chủ sau khi đăng nhập xong
-      navigation.goBack(); 
-      
+
+      // ĐÃ SỬA DÒNG NÀY: Chuyển sang trang OTP thay vì quay lại
+      navigation.navigate('Otp', { phone: phone });
+
     } catch (error: any) {
-      // Nếu API trả về lỗi (sai pass, không tìm thấy user...)
       const errorMsg = error.response?.data?.detail || error.response?.data?.error || 'Đăng nhập thất bại';
       Alert.alert('Lỗi', errorMsg);
     } finally {
@@ -39,7 +35,7 @@ const LoginScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Đăng nhập</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="Số điện thoại"
@@ -47,7 +43,7 @@ const LoginScreen = ({ navigation }: any) => {
         value={phone}
         onChangeText={setPhone}
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Mật khẩu"
@@ -56,17 +52,16 @@ const LoginScreen = ({ navigation }: any) => {
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity 
-        style={[styles.button, isLoading && styles.buttonDisabled]} 
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleLogin}
         disabled={isLoading}
       >
-        <Text style={styles.buttonText}>{isLoading ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
+        <Text style={styles.buttonText}>{isLoading ? 'Đang xử lý...' : 'Tiếp tục'}</Text>
       </TouchableOpacity>
 
-      {/* THÊM ĐOẠN NÀY */}
-      <TouchableOpacity 
-        style={{ marginTop: 20, alignItems: 'center' }} 
+      <TouchableOpacity
+        style={{ marginTop: 20, alignItems: 'center' }}
         onPress={() => navigation.navigate('Register')}
       >
         <Text style={{ color: '#007BFF', fontSize: 16 }}>Chưa có tài khoản? Đăng ký ngay</Text>
