@@ -13,6 +13,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface SendOtpRequest {
+  phone: string;
+}
+
+export interface VerifyOtpRequest {
+  phone: string;
+  otp: string;
+}
+
 // Dựa theo cấu trúc trả về Token bên auth/main.py
 export interface AuthResponse {
   access_token: string;

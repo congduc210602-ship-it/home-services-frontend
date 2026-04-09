@@ -1,16 +1,18 @@
 // src/screens/Auth/OtpScreen.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { authService } from '../../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OtpScreen = ({ route, navigation }: any) => {
-    // Nhận số điện thoại từ màn hình Đăng nhập/Đăng ký truyền sang
-    const phone = route.params?.phone || '090x.xxx.xxx';
+    const phone = route.params?.phone || '';
 
-    const [otp, setOtp] = useState(['', '', '', '']); // Mã OTP 4 số
-    const [timer, setTimer] = useState(60); // Đếm ngược 60s
+    // Nâng cấp lên 6 ô OTP để khớp với Backend
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const [timer, setTimer] = useState(60);
+    const [isLoading, setIsLoading] = useState(false);
     const inputRefs = useRef<Array<any>>([]);
 
-    // Chạy bộ đếm ngược
     useEffect(() => {
         let interval = setInterval(() => {
             setTimer((prev) => (prev > 0 ? prev - 1 : 0));
@@ -18,41 +20,57 @@ const OtpScreen = ({ route, navigation }: any) => {
         return () => clearInterval(interval);
     }, []);
 
-    // Xử lý khi nhập số
     const handleChange = (text: string, index: number) => {
-        // Chỉ lấy 1 ký tự số
         const value = text.replace(/[^0-9]/g, '').slice(-1);
         const newOtp = [...otp];
         newOtp[index] = value;
         setOtp(newOtp);
 
-        // Tự động nhảy sang ô tiếp theo nếu có nhập số
-        if (value && index < 3) {
+        // Tự động nhảy sang ô tiếp theo (giới hạn ở ô thứ 5, tức là ô thứ 6 trong mảng)
+        if (value && index < 5) {
             inputRefs.current[index + 1].focus();
         }
     };
 
-    // Xử lý khi bấm nút xóa (Backspace)
     const handleKeyPress = (e: any, index: number) => {
         if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-            // Nếu ô hiện tại rỗng và bấm xóa, lùi về ô trước đó
             inputRefs.current[index - 1].focus();
         }
     };
 
-    const handleVerify = () => {
+    const handleResend = async () => {
+        try {
+            await authService.sendOtp({ phone });
+            setTimer(60);
+            Alert.alert('Thành công', 'Đã gửi lại mã OTP mới!');
+        } catch (error) {
+            Alert.alert('Lỗi', 'Không thể gửi lại mã lúc này');
+        }
+    };
+
+    const handleVerify = async () => {
         const otpCode = otp.join('');
-        if (otpCode.length < 4) {
-            Alert.alert('Lỗi', 'Vui lòng nhập đủ 4 số OTP');
+        if (otpCode.length < 6) {
+            Alert.alert('Lỗi', 'Vui lòng nhập đủ 6 số OTP');
             return;
         }
 
-        // Ở đây sau này sẽ gọi API kiểm tra OTP với Backend
-        console.log('Mã OTP gửi đi:', otpCode);
+        setIsLoading(true);
+        try {
+            // Gọi API Verify OTP
+            const response = await authService.verifyOtp({ phone, otp: otpCode });
 
-        Alert.alert('Thành công', 'Xác thực số điện thoại thành công!', [
-            { text: 'Vào Trang chủ', onPress: () => navigation.navigate('Home') }
-        ]);
+            // Lưu Token và cho vào nhà
+            await AsyncStorage.setItem('userToken', response.access_token);
+            Alert.alert('Thành công', 'Xác thực thành công!');
+            navigation.navigate('Home');
+
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.detail || 'Mã OTP không đúng hoặc đã hết hạn';
+            Alert.alert('Lỗi', errorMsg);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -66,16 +84,14 @@ const OtpScreen = ({ route, navigation }: any) => {
 
                     <Text style={styles.title}>Xác thực OTP</Text>
                     <Text style={styles.subtitle}>
-                        Chúng tôi vừa gửi mã gồm 4 chữ số đến số điện thoại {'\n'}
+                        Chúng tôi vừa gửi mã gồm 6 chữ số đến số điện thoại {'\n'}
                         <Text style={styles.highlightPhone}>{phone}</Text>
                     </Text>
 
-                    {/* Khu vực 4 ô nhập OTP */}
                     <View style={styles.otpContainer}>
                         {otp.map((digit, index) => (
                             <TextInput
                                 key={index}
-                                // ĐÃ SỬA LỖI TYPESCRIPT Ở DÒNG NÀY:
                                 ref={(ref) => { inputRefs.current[index] = ref; }}
                                 style={[styles.otpInput, digit ? styles.otpInputActive : null]}
                                 keyboardType="number-pad"
@@ -89,11 +105,11 @@ const OtpScreen = ({ route, navigation }: any) => {
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.verifyBtn, otp.join('').length === 4 ? styles.verifyBtnActive : null]}
+                        style={[styles.verifyBtn, otp.join('').length === 6 && !isLoading ? styles.verifyBtnActive : null]}
                         onPress={handleVerify}
-                        disabled={otp.join('').length < 4}
+                        disabled={otp.join('').length < 6 || isLoading}
                     >
-                        <Text style={styles.verifyBtnText}>Xác nhận</Text>
+                        <Text style={styles.verifyBtnText}>{isLoading ? 'Đang kiểm tra...' : 'Xác nhận'}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.resendContainer}>
@@ -101,7 +117,7 @@ const OtpScreen = ({ route, navigation }: any) => {
                         {timer > 0 ? (
                             <Text style={styles.timerText}>Gửi lại sau {timer}s</Text>
                         ) : (
-                            <TouchableOpacity onPress={() => setTimer(60)}>
+                            <TouchableOpacity onPress={handleResend}>
                                 <Text style={styles.resendAction}>Gửi lại mã</Text>
                             </TouchableOpacity>
                         )}
@@ -115,7 +131,7 @@ const OtpScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFF' },
-    content: { flex: 1, paddingHorizontal: 25, paddingTop: 40 },
+    content: { flex: 1, paddingHorizontal: 20, paddingTop: 40 },
     backBtn: { alignSelf: 'flex-start', marginBottom: 30, paddingVertical: 10 },
     backText: { fontSize: 16, color: '#1A73E8', fontWeight: '600' },
 
@@ -124,7 +140,8 @@ const styles = StyleSheet.create({
     highlightPhone: { fontWeight: 'bold', color: '#1A1A1A' },
 
     otpContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 },
-    otpInput: { width: 65, height: 65, borderRadius: 12, borderWidth: 1.5, borderColor: '#DDD', backgroundColor: '#F8F9FA', fontSize: 28, fontWeight: 'bold', textAlign: 'center', color: '#333' },
+    // Mình chỉnh lại kích thước ô một chút để nhét vừa 6 ô vào màn hình
+    otpInput: { width: 45, height: 55, borderRadius: 10, borderWidth: 1.5, borderColor: '#DDD', backgroundColor: '#F8F9FA', fontSize: 22, fontWeight: 'bold', textAlign: 'center', color: '#333' },
     otpInputActive: { borderColor: '#1A73E8', backgroundColor: '#F0F4FF' },
 
     verifyBtn: { backgroundColor: '#A0C4FF', paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 25 },

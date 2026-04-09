@@ -56,7 +56,7 @@ const RegisterScreen = ({ navigation }: any) => {
       
       <TextInput
         style={styles.input}
-        placeholder="Mật khẩu (tối thiểu 8 ký tự)"
+        placeholder="Mật khẩu (tối thiểu 6 ký tự)"
         secureTextEntry
         value={password}
         onChangeText={setPassword}

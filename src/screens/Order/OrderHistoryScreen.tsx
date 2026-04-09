@@ -14,10 +14,11 @@ const OrderHistoryScreen = ({ navigation }: any) => {
 
     const fetchOrders = async () => {
         try {
-            // Gọi API lấy danh sách đơn hàng từ cổng 8002
+            // Gọi API lấy danh sách đơn hàng
             const response = await orderService.getListOrders();
-            // Backend trả về object có key "orders" chứa mảng dữ liệu
-            setOrders(response.orders || []);
+
+            // ĐÃ SỬA DÒNG NÀY: Truyền thẳng response vào vì backend trả về Array
+            setOrders(response || []);
         } catch (error) {
             console.log('Lỗi lấy đơn hàng:', error);
         } finally {

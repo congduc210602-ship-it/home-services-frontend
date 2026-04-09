@@ -1,8 +1,10 @@
 // src/screens/Home/HomeScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar, Alert } from 'react-native';
+// THÊM 2 DÒNG NÀY ĐỂ XỬ LÝ TRẠNG THÁI LOGIN
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Mở rộng dữ liệu mẫu để test bộ lọc
 const SERVICES_DATA = [
   { id: '1', name: 'Dọn dẹp nhà cửa', category: 'Vệ sinh', price: 150000, icon: '🧹', color: '#E8F5E9' },
   { id: '2', name: 'Sửa chữa điện', category: 'Sửa chữa', price: 200000, icon: '⚡', color: '#FFF3E0' },
@@ -17,7 +19,45 @@ const HomeScreen = ({ navigation }: any) => {
   const [searchText, setSearchText] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tất cả');
 
-  // Logic Lọc & Tìm kiếm
+  // BIẾN LƯU TRẠNG THÁI ĐĂNG NHẬP
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // MỖI KHI MỞ TRANG CHỦ, HÀM NÀY SẼ CHẠY ĐỂ KIỂM TRA TOKEN
+  useFocusEffect(
+    React.useCallback(() => {
+      checkLoginStatus();
+    }, [])
+  );
+
+  const checkLoginStatus = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+      }
+    } catch (error) {
+      console.log('Lỗi kiểm tra token:', error);
+    }
+  };
+
+  // HÀM XỬ LÝ ĐĂNG XUẤT
+  const handleLogout = () => {
+    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await AsyncStorage.removeItem('userToken'); // Xóa token
+          setIsLoggedIn(false); // Cập nhật lại giao diện
+          Alert.alert('Thành công', 'Đã đăng xuất!');
+        }
+      }
+    ]);
+  };
+
   const filteredServices = SERVICES_DATA.filter(service => {
     const matchCategory = activeCategory === 'Tất cả' || service.category === activeCategory;
     const matchSearch = service.name.toLowerCase().includes(searchText.toLowerCase());
@@ -28,7 +68,15 @@ const HomeScreen = ({ navigation }: any) => {
     <TouchableOpacity
       style={styles.serviceCard}
       activeOpacity={0.7}
-      onPress={() => navigation.navigate('Order', { serviceName: item.name, price: item.price })}
+      onPress={() => {
+        // Nếu chưa đăng nhập, bắt ép đi đăng nhập mới được đặt dịch vụ
+        if (!isLoggedIn) {
+          Alert.alert('Yêu cầu', 'Vui lòng đăng nhập để đặt dịch vụ!');
+          navigation.navigate('Login');
+          return;
+        }
+        navigation.navigate('Order', { serviceName: item.name, price: item.price });
+      }}
     >
       <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
         <Text style={styles.icon}>{item.icon}</Text>
@@ -52,16 +100,33 @@ const HomeScreen = ({ navigation }: any) => {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Xin chào,</Text>
-          <Text style={styles.userName}>Đức ✌️</Text>
+          {/* Đổi tên dựa theo trạng thái đăng nhập */}
+          <Text style={styles.userName}>{isLoggedIn ? 'user.name ✌️' : 'Khách 👋'}</Text>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {/* Nút Đăng nhập tạm thời để test */}
-          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.historyBtn, { backgroundColor: '#FFF3E0' }]}>
-            <Text style={{ color: '#F57C00', fontWeight: 'bold' }}>👤 Đăng nhập</Text>
-          </TouchableOpacity>
+          {/* ĐIỀU KIỆN HIỂN THỊ NÚT ĐĂNG NHẬP / ĐĂNG XUẤT */}
+          {isLoggedIn ? (
+            <TouchableOpacity onPress={handleLogout} style={[styles.historyBtn, { backgroundColor: '#FFEBEE' }]}>
+              <Text style={{ color: '#D32F2F', fontWeight: 'bold' }}>🚪 Thoát</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.historyBtn, { backgroundColor: '#FFF3E0' }]}>
+              <Text style={{ color: '#F57C00', fontWeight: 'bold' }}>👤 Đăng nhập</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity onPress={() => navigation.navigate('OrderHistory')} style={styles.historyBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              if (!isLoggedIn) {
+                Alert.alert('Yêu cầu', 'Vui lòng đăng nhập để xem lịch sử!');
+                navigation.navigate('Login');
+                return;
+              }
+              navigation.navigate('OrderHistory');
+            }}
+            style={styles.historyBtn}
+          >
             <Text style={styles.historyText}>📋 Lịch sử</Text>
           </TouchableOpacity>
         </View>
@@ -117,7 +182,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 25 },
   greeting: { fontSize: 16, color: '#666' },
   userName: { fontSize: 24, fontWeight: '800', color: '#1A1A1A' },
-  historyBtn: { backgroundColor: '#E8F0FE', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  historyBtn: { backgroundColor: '#E8F0FE', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, justifyContent: 'center' },
   historyText: { color: '#1A73E8', fontWeight: 'bold' },
 
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 15, paddingHorizontal: 15, paddingVertical: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2, marginBottom: 20 },
